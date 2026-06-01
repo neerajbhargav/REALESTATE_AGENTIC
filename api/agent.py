@@ -53,7 +53,7 @@ def get_model():
     return ChatAnthropic(
         model="claude-3-5-sonnet-20241022",
         temperature=0,
-        api_key=os.environ.get("EMERGENT_LLM_KEY", "dummy")
+        api_key=os.environ.get("ANTHROPIC_API_KEY", "dummy")
     ).bind_tools(tools)
 
 async def call_model(state: AgentState):
