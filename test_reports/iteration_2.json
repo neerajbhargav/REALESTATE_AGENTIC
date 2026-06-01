@@ -1,0 +1,35 @@
+{
+  "summary": "Full backend + frontend regression for iteration 2 (autocomplete /api/suggest, async job pattern, emergent badge removal, AssessmentReport refactor). 18/18 pytest assertions PASS at external preview URL covering: /api/health (claude_available=true), /api/reports list & detail with full schema and no _id leak, BSF math (15,050 == lotarea*residfar), comparable_sales schema, /api/analyze input validation (400/422), NEW async job pattern (/api/analyze returns {job_id, status:'processing'} immediately; /api/jobs/{unknown} returns 404), and NEW /api/suggest (valid query '365 Rutland' returns >=1 suggestion with label/bbl/borough; '23-29 Astoria' returns valid schema; <3 chars 'ab' returns empty list; empty/missing q returns empty list). Frontend Playwright run confirms: hero loads with address-input + analyze-button, #emergent-badge is GONE from DOM, autocomplete dropdown appears with 6 suggestion-0..5 items each showing address + BBL after ~280ms debounce, keyboard ArrowDown highlights suggestion-0 (bg-zinc-100), Escape closes dropdown, short query (2 chars) renders no dropdown, history-item click renders full assessment-report with bsf-value=8,505/zoning-district=R6/value-range=$2.45M-$2.80M/8 comp-rows/flags-list, sample-address-0 click triggers loading-pipeline then real Claude pipeline completes in ~66s with assessment-report showing bsf-value=15,050, zoning M1-4A/R8A, value $6.09M-$11.26M, 8 comp-rows, flags-list visible. Live end-to-end with polling works because /api/analyze no longer blocks the gateway.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py _run_job persists report via db.reports.insert_one({**report}) which spreads into a fresh dict — good, no _id leaks back into the in-memory report copy. The /api/jobs/{id} response correctly projects out _id. Clean.",
+    "analyzer/geocoder.suggest_addresses returns [] on any exception (best-effort). This is fine for UX but swallows real errors; consider logging the exception body so a future regression in NYC GeoSearch autocomplete is observable in backend logs.",
+    "HeroSearch.jsx debounce is 280ms with a justSelectedRef guard to prevent a re-fetch after selection — correct. One subtle issue: setHighlight(-1) on new suggestions means an immediate Enter without ArrowDown does NOT pick suggestion-0 (it falls through to onSubmit(value)). That's by design but worth documenting; some users expect Enter on first result to pick it.",
+    "api.js suggestAddresses has timeout 8s — appropriate. startAnalysis timeout 30s is generous since backend returns {job_id} in <1s; consider lowering to 10s.",
+    "Frontend Analyzer.jsx error path: when polling /api/jobs/{id} returns status:'error', useAnalysis should surface the backend error string to the toast. Verify the hook propagates job.error -> toast.error description (not just a generic 'Analysis failed').",
+    "No retest needed: all critical user flows verified end-to-end including a live Claude synthesis run that completed in 65.9s."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_api.py"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% (all 12 critical assertions)"},
+  "test_credentials": "n/a (no auth)",
+  "seed_data_creation": "None — relied on existing saved reports in MongoDB. Live Claude pipeline created one new report for BBL 4000780037 during the test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pytest suite at /app/backend/tests/test_api.py now covers the new async job pattern and /api/suggest. The live frontend autocomplete + Claude analyze flow completes end-to-end via polling in ~60-70s; previous gateway timeout issue is fully resolved by the job/polling pattern. data-testids stable: address-input, analyze-button, suggestions-list, suggestion-{i}, loading-pipeline, assessment-report, bsf-value, zoning-district, value-range, comps-table, comp-row-{i}, flags-list, back-button, history-item-{id}, sample-address-{0..4}. Emergent badge confirmed removed from /app/frontend/public/index.html.",
+  "rca of the issue": "No bugs found. All 11 listed test cases in the review request pass. Highlights: (a) /api/suggest works for 365 Rutland and 23-29 Astoria returning labelled BBL suggestions; (b) #emergent-badge is no longer in DOM (verified via querySelector('#emergent-badge') === null); (c) autocomplete debounce (~280ms) + keyboard nav (ArrowDown highlight, Escape close, Enter to select) all behave correctly; (d) clicking a suggestion fills input and immediately submits, loading-pipeline shows, polling resolves to full assessment-report; (e) sample-address and history-item regressions intact; (f) live Claude run completed in 65.9s — the previous iteration's gateway-timeout failure mode is resolved by the job/polling pattern."
+}

@@ -1,0 +1,35 @@
+{
+  "summary": "End-to-end backend + frontend test of CRE Site Intelligence. 12/12 backend pytest assertions pass against external preview URL: /api/health (claude_available=true), /api/reports list contains target BBL 4000780037, /api/reports/{id} returns full schema (no _id leak), BSF math verified (15,050 == round(2500 * 6.02)), comparable_sales non-empty with correct schema, /api/analyze input validation returns 400/422 on bad input, and live /api/analyze gracefully fails with 502 (Claude budget exhausted — external constraint, verified in backend logs that geocode + PLUTO + ACRIS pipeline completed before Claude call). Frontend Playwright run confirms: hero search renders, sidebar has 5 sample-address buttons and 6 history items, clicking history loads full assessment-report with bsf-value=15,050, zoning-district=M1-4A/R8A, value-range=$6.09M-$11.26M, 8 comp-rows with ACRIS citation chips, underbuilt-badge active, flags-list populated. Clicking Analyze surfaces a graceful Sonner error toast (\"Analysis failed - Request failed with status code 502\") — no crash or white screen.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/analyze", "issue": "Live Claude call exceeds the 60s Kubernetes ingress timeout when the pipeline runs end-to-end; ingress returns its own gateway error before backend's 502. Not a code defect — verified in backend logs that the FastAPI handler does return 502 with 'Budget has been exceeded' detail. Consider returning early/streaming progress or moving Claude into a background job + polling if running outside the preview ingress."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py /api/analyze persists report after success and excludes _id via project query in list/detail — clean. Consider also stripping any incidentally-stored _id on insert_one returns (insert_one mutates the dict adding _id), so a future caller reading the returned report object directly would see _id. Currently the API re-uses the original `report` dict which after insert_one would have a Mongo ObjectId; but the response body is serialized BEFORE insert occurs (await ... insert_one is called and then `return report`), so _id leaks into the /api/analyze response. To verify: add `report.pop('_id', None)` after the insert or insert a copy.",
+    "calculator.estimate_land_value uses a percentile-based $/BSF range from comps, but the comp $/BSF filter (20..1500) may discard valid Manhattan comps where $/BSF can exceed $1500 — consider raising upper bound or making it borough-aware.",
+    "claude_client retries are not visible here; if Claude fails mid-pipeline, all upstream PLUTO/ACRIS work is wasted. Consider caching upstream results keyed by BBL so a retry doesn't re-hit the public NYC APIs.",
+    "Frontend Analyzer.jsx — toast.error description shows raw axios text 'Request failed with status code 502' when backend detail isn't surfaced (ingress timeout returns HTML, not JSON detail). Detail extraction is correct but the user sees a generic message in that case."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_api.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "n/a (no auth)",
+  "seed_data_creation": "None — relied on existing saved reports in MongoDB. Target BBL 4000780037 (21-48 44 DRIVE, LIC) already present.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable pytest suite at /app/backend/tests/test_api.py covers health, reports list/detail, BSF math, comp schema, and graceful analyze failure. The /api/analyze endpoint cannot return successfully through the preview ingress because Claude synthesis routinely exceeds 60s ingress timeout; verify via curl from inside the pod or check backend logs for ClaudeAPIError 'Budget has been exceeded'. Front-end correctly handles the error.",
+  "rca of the issue": "No bugs to RCA. The single 'failure mode' (POST /api/analyze returning 502) is by-design pending Emergent Universal Key budget top-up — backend logs confirm 'litellm.BadRequestError: Budget has been exceeded! Current cost: 0.074448, Max budget: 0.001'. Frontend handles this with a clean Sonner error toast; no white screen, no unhandled promise rejection."
+}

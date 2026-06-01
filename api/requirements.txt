@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+httpx
+pydantic
+langchain
+langchain-anthropic
+langgraph
+mcp
+fastmcp
+python-dotenv
+pandas

@@ -1,0 +1,14 @@
+Article I: General Provisions
+Chapter 1 - Title, Establishment of Controls and Interpretation of Regulations
+11-00 Title: This resolution shall be known and may be cited as the Zoning Resolution of the City of New York.
+11-12 Establishment of Districts: In order to carry out the purposes and provisions of this Resolution, the following districts are hereby established:
+
+Residence Districts (R1-R10):
+R1 districts are mapped in low-density residential neighborhoods. They allow single-family detached homes. The maximum Floor Area Ratio (FAR) is 0.5.
+R6 districts are medium-density residential areas. The maximum residential FAR ranges from 0.78 to 2.43 under Height Factor zoning, or up to 3.0 under Quality Housing.
+
+Commercial Districts (C1-C8):
+C4 districts are mapped in regional commercial centers outside central business districts. They allow specialty retail, offices, and residential uses. Typical FAR is 3.4.
+
+Manufacturing Districts (M1-M3):
+M1 districts are designed for light manufacturing and commercial uses. Most retail and offices are permitted as-of-right. Residential use is generally prohibited.

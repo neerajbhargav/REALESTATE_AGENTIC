@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 3 regression + new-feature validation for CRE Site Intelligence. Backend: 19/19 pytest assertions PASS at external preview URL — all previous coverage (health, /api/reports list+detail, BSF math, comps schema, /api/analyze 400/422 validation, async {job_id} pattern, /api/jobs unknown-id 404, /api/suggest valid+short+empty+missing+astoria) PLUS a new live end-to-end test that submits '4408 60th Street, Woodside, NY', polls /api/jobs/{id} every 2s, and asserts: (a) a numeric `stage` field is present and monotonically non-decreasing while status='processing' (observed multiple distinct stages 0..3), (b) status eventually='done' with stage absent on done (per the spec's response shape {status:'done', report:{...}}), and (c) the final report includes coordinates=[lon,lat] inside NYC bounds (needed by the new ReportMap). Frontend Playwright (1920x1080, headed): (1) DEEP-LINK /report/a88f6b40-... loads assessment-report with bsf-value=22,000, zoning=R7X, value=$2.40M-$3.48M, report-map (.leaflet-container + tile imgs), comps-chart svg (recharts), comps-table, flags-list; (2) share-button click does not crash (clipboard blocked in headless — toast 'Could not copy link' appears, but no JS exception, matches spec); (3) print-button click invokes window.print (verified via override window.print=()=>{window.__printCalled=true}); (4) #emergent-badge absent; (5) autocomplete still returns 6 suggestions for '23-29 Astoria'; (6) history-item click renders saved report with both map+chart; (7) sample-address-4 (Woodside) click triggers loading-pipeline, pipeline reflects stage transitions (observed pluto_acris, compute, claude active states), then assessment-report renders end-to-end in ~27s with all required testids (bsf-value, zoning-district, value-range, report-map, comps-chart, comps-table, flags-list).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/jobs/{id}", "issue": "When status='done', response omits the `stage` field. Spec says stage progresses 0..3 while processing and 4=done; current backend writes stage=4 to Mongo but the done-branch return only emits {status,report}. Frontend doesn't depend on stage when done (it switches to report render), so this is cosmetic — but worth aligning the contract by adding 'stage': 4 to the done branch in server.py:223."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Share / Copy link", "issue": "In sandbox/headless browsers clipboard write is blocked, so the share button emits an error toast 'Could not copy link'. This is correct fallback behavior (no crash), but in production the toast should be a success — verify navigator.clipboard.writeText is wrapped with a try/catch that falls back to document.execCommand('copy') for older browsers; current behavior is acceptable for the spec.", "affected_selectors": ["[data-testid=share-button]"]}
+    ],
+    "design_issues": [
+      {"screen": "Report (initial mount)", "issues": ["Recharts logs console warning 'The width(-1) and height(-1) of chart should be greater than 0' on first paint of comps-chart. The chart still renders correctly once ResponsiveContainer measures. Consider giving ResponsiveContainer a minWidth=0 / minHeight=240 to silence the warning, or wrapping CompsChart in a layout container that has computed width before mount."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional, low-priority) Include 'stage': 4 in the GET /api/jobs/{id} done response for contract symmetry — server.py:223.",
+    "(Optional, low-priority) Suppress recharts width/height(-1) warning by setting minHeight on the CompsChart ResponsiveContainer wrapper."
+  ],
+  "critical_code_review_comments": [
+    "server.py _run_job correctly writes stage=4 to db.jobs on completion but the GET /api/jobs/{id} done branch (line 223) drops the stage from the response shape. Not a bug per the spec but inconsistent with the documented progression 0..4.",
+    "ReportMap.jsx returns null if coordinates length < 2 or either lat/lon is falsy — robust. Uses CircleMarker (avoids default marker-icon asset issues that often break react-leaflet builds) — good choice.",
+    "CompsChart.jsx filters by implied_ppbsf truthy and slices first 10 — sensible. ReferenceArea uses fillOpacity 0.08 + dashed stroke for the applied range — clean visual. Returns null gracefully if data.length<1.",
+    "Analyzer.jsx uses useParams for deep-link /report/:id and useNavigate to mirror state into URL — clean. Verify the hook drops the report from state when the user clicks 'New analysis' so the back button doesn't strand them on /report/:id.",
+    "useAnalysis.js should propagate backend job.error string to the toast description (rather than a generic 'Analysis failed') — same comment as iteration_2.",
+    "api.js startAnalysis timeout 30s is still generous since backend returns {job_id} in <1s; lowering to 10s improves error feedback for gateway flakiness."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_api.py"
+  ],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% (all 11 listed test cases pass)"},
+  "test_credentials": "n/a (no auth)",
+  "seed_data_creation": "None — used existing saved report id a88f6b40-865d-41eb-af95-de90dada9e46 (Woodside) for the deep-link test. Live Claude pipeline during the sample-address-4 click produced a new report saved to MongoDB (BBL 4013340077).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All new iteration-3 features verified: numeric job.stage progression (0..3 while processing), ReportMap (leaflet-container + OSM tiles render), CompsChart (recharts svg with ReferenceArea applied-range shading), print-button (window.print invoked), share-button (no crash, toast shown), and deep-link route /report/:id (loads saved report with full schema). data-testids stable and used: report-map, comps-chart, share-button, print-button, plus prior: address-input, analyze-button, suggestions-list, suggestion-{i}, loading-pipeline, assessment-report, bsf-value, zoning-district, value-range, comps-table, comp-row-{i}, flags-list, back-button, history-item-{id}, sample-address-{0..4}. Live Woodside analysis completed in ~27s during this run (faster than iteration_2's 66s). Two low-priority polish items remain (stage:4 in done payload; recharts width/height(-1) warning) but neither blocks any user flow.",
+  "rca of the issue": "No bugs. The single minor inconsistency (stage missing on status=done) matches the documented response shape in the review request and does not affect the LoadingPipeline component (which only reads stage while processing). All 11 listed test cases pass."
+}

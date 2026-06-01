@@ -1,0 +1,91 @@
+{
+  "theme": "LIGHT",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "rationale": "NYC commercial real estate requires authority, clarity, and truth. Dark UI feels too 'fintech-bro'. We want the application to feel like a high-end architectural blueprint mixed with a Bloomberg terminal—objective, rigid, and functional.",
+  "typography": {
+    "headings": {
+      "font": "Cabinet Grotesk",
+      "weight": "font-black",
+      "tracking": "tracking-tighter",
+      "usage": "Use for the massive address search input, report title, and massive BSF metrics."
+    },
+    "body": {
+      "font": "IBM Plex Sans",
+      "weight": "font-normal",
+      "tracking": "tracking-normal",
+      "usage": "Use for plain english zoning descriptions, lot characteristics, and table data."
+    },
+    "mono": {
+      "font": "IBM Plex Mono",
+      "weight": "font-medium",
+      "tracking": "tracking-tight",
+      "usage": "CRITICAL: Use for all source citation chips (NYC PLUTO, ACRIS, GeoSearch), and numeric values like Square Footage and Land Value."
+    }
+  },
+  "colors": {
+    "background": "#F4F4F5",
+    "foreground": "#09090B",
+    "card_background": "#FFFFFF",
+    "primary": "#09090B",
+    "primary_foreground": "#FFFFFF",
+    "border": "#E4E4E7",
+    "accent_warning": "#FF3B30",
+    "accent_info": "#0055FF",
+    "citation_bg": "#F4F4F5",
+    "citation_text": "#52525B"
+  },
+  "layout": {
+    "strategy": "The 'Control Room' Grid",
+    "rules": [
+      "Mobile-First: Start with grid-cols-1, move to md:grid-cols-3 or lg:grid-cols-4 for dense data.",
+      "Spacing: Generous p-8 or p-12 for the hero search, but tight gap-4 for the bento data cards.",
+      "Surfaces: Flat solid backgrounds. NO GLASSMORPHISM. 1px sharp borders. border-radius of max 4px (rounded-sm) for a brutalist, technical feel.",
+      "Sidebar: Use a rigid left sidebar for 'Past Lookups' with a subtle border-r."
+    ]
+  },
+  "components": {
+    "hero_search": {
+      "style": "Massive typography (text-5xl to text-6xl+). Input field should not look like a standard box; it should be a bottom-bordered clean architectural line or a massive bento block. Auto-complete style.",
+      "alignment": "Left-aligned for authoritative feel. Do not center."
+    },
+    "citation_chips": {
+      "style": "Tiny, uppercase, mono font. border border-zinc-200 bg-zinc-100 text-[10px] tracking-widest px-1.5 py-0.5 rounded-sm. Must be placed next to every numeric claim."
+    },
+    "data_cards": {
+      "style": "Flat, 1px border. No shadows. Use 'Grid Borders' style: border-r border-b border-border/40 to create a technical table-like feel for the bento boxes."
+    },
+    "comparables_table": {
+      "style": "Dense tabular layout. Use standard Shadcn Table but remove rounded corners. Headers in small uppercase mono."
+    },
+    "flags_section": {
+      "style": "Use Signal Red (#FF3B30) sparingly for borders or text of the 'things to investigate' section to immediately draw the broker's eye."
+    }
+  },
+  "interactions": {
+    "hover": "Sharp 1px solid stroke or background inversion. No soft shadows. For rows in tables: hover:bg-zinc-100.",
+    "loading_state": "Step-by-step pipeline checklist with mono-spaced ASCII/Terminal feel (Geocoding -> PLUTO -> ACRIS -> Claude). Do not use a generic spinner. Use a progress bar or text terminal output."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1724123301969-22859c2a3823?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA3MDR8MHwxfHNlYXJjaHwxfHxueWMlMjBhcmNoaXRlY3R1cmUlMjBhYnN0cmFjdHxlbnwwfHx8fDE3ODAzMzAzODB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "High-contrast black and white tall NYC buildings looking up. Represents scale, development, and zoning.",
+        "category": "hero_empty_state_background"
+      },
+      {
+        "url": "https://images.pexels.com/photos/32715519/pexels-photo-32715519.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Modern building facade with unique geometric design.",
+        "category": "sidebar_texture_or_auth_background"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Install required fonts from Google Fonts: 'Cabinet Grotesk' (via Fontshare or local if not available, else substitute with Space Grotesk/Clash Display), 'IBM Plex Sans', and 'IBM Plex Mono'.",
+    "Setup a two-pane layout: A narrow left sidebar (w-64) for 'Report History / Past Lookups' and a main content area.",
+    "Implement the initial state as a massive, bold search input ('NYC Development Site Analyzer') taking up the main view. When a search is executed, transition to the Loading Pipeline view, then to the Data Dashboard.",
+    "The Data Dashboard must use a tightly packed grid (bento 'Control Room' style). Sections: Zoning Summary, Lot Characteristics, Development Potential (Make BSF the largest number on the screen), Comparable Sales, Land Value.",
+    "EVERY numeric datapoint must have a citation chip next to it. E.g., '10,000 [NYC PLUTO]'.",
+    "Ensure the use of Lucide React icons for the pipeline loading state and sidebar history.",
+    "Add 'data-testid' to ALL interactive elements (search input, submit button, history links, citation links)."
+  ]
+}
