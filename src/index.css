@@ -1,25 +1,122 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-slate-900 text-slate-100 font-sans;
+:root {
+    --bg: #f4f4f5;
+    --fg: #09090b;
+    --card: #ffffff;
+    --border: #e4e4e7;
+    --muted: #71717a;
+    --citation-bg: #f4f4f5;
+    --citation-fg: #52525b;
+    --warning: #ff3b30;
+    --info: #0055ff;
+}
+
+body {
     margin: 0;
-    padding: 0;
-    min-height: 100vh;
-  }
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-.glass-panel {
-  @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl;
+code,
+.font-mono {
+    font-family: "IBM Plex Mono", monospace;
 }
 
-/* Custom scrollbar for streaming container */
+.font-display {
+    font-family: "Cabinet Grotesk", "IBM Plex Sans", sans-serif;
+}
+
+::selection {
+    background: var(--fg);
+    color: #fff;
+}
+
+/* Thin technical scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+    width: 8px;
+    height: 8px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-slate-800/50 rounded-full;
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-600 rounded-full hover:bg-slate-500 transition-colors;
+    background: #d4d4d8;
+    border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1aa;
+}
+
+@layer base {
+    :root {
+        --background: 240 5% 96%;
+        --foreground: 240 10% 4%;
+        --card: 0 0% 100%;
+        --card-foreground: 240 10% 4%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 240 10% 4%;
+        --primary: 240 10% 4%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 240 5% 96%;
+        --secondary-foreground: 240 10% 4%;
+        --muted: 240 5% 96%;
+        --muted-foreground: 240 4% 46%;
+        --accent: 240 5% 90%;
+        --accent-foreground: 240 10% 4%;
+        --destructive: 4 100% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 240 6% 90%;
+        --input: 240 6% 90%;
+        --ring: 240 10% 4%;
+        --radius: 0.25rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* Subtle entrance animation */
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.animate-rise {
+    animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes blink {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+}
+.cursor-blink {
+    animation: blink 1s step-end infinite;
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
 }
