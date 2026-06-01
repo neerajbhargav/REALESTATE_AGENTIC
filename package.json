@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "CI=false vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -15,11 +15,9 @@
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-leaflet": "^5.0.0"
-  },
-  "devDependencies": {
+    "react-leaflet": "^5.0.0",
     "@eslint/js": "^10.0.1",
-    "@tailwindcss/postcss": "^4.3.0",
+    "@tailwindcss/postcss": "^4.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
