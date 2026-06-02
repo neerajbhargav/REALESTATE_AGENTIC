@@ -101,11 +101,13 @@ async def chat_endpoint(req: ChatRequest):
         f"PROPERTY CONTEXT:\n{json.dumps(context, indent=2)}"
     )
 
+    from agent import MODEL
+
     async def event_generator():
         try:
             # We call Claude with streaming enabled
             async with client.messages.stream(
-                model="claude-3-5-sonnet-20241022",
+                model=MODEL,
                 max_tokens=1000,
                 system=system_prompt,
                 messages=[{"role": "user", "content": question}],

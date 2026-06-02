@@ -20,7 +20,7 @@ from rag import get_zoning_rule
 def _get_client() -> AsyncAnthropic:
     return AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
-MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
 
 # ---------------------------------------------------------------------------
 # Tool definitions (Anthropic native format)
