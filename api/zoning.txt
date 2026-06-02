@@ -1,14 +1,74 @@
-Article I: General Provisions
-Chapter 1 - Title, Establishment of Controls and Interpretation of Regulations
-11-00 Title: This resolution shall be known and may be cited as the Zoning Resolution of the City of New York.
-11-12 Establishment of Districts: In order to carry out the purposes and provisions of this Resolution, the following districts are hereby established:
+NYC ZONING DISTRICTS — QUICK REFERENCE
+(For development-site analysis. FAR = Floor Area Ratio = buildable floor area per sq ft of lot.)
 
-Residence Districts (R1-R10):
-R1 districts are mapped in low-density residential neighborhoods. They allow single-family detached homes. The maximum Floor Area Ratio (FAR) is 0.5.
-R6 districts are medium-density residential areas. The maximum residential FAR ranges from 0.78 to 2.43 under Height Factor zoning, or up to 3.0 under Quality Housing.
+=== RESIDENCE DISTRICTS ===
 
-Commercial Districts (C1-C8):
-C4 districts are mapped in regional commercial centers outside central business districts. They allow specialty retail, offices, and residential uses. Typical FAR is 3.4.
+R1 / R2: Lowest-density. Single-family detached homes. Max residential FAR 0.5.
 
-Manufacturing Districts (M1-M3):
-M1 districts are designed for light manufacturing and commercial uses. Most retail and offices are permitted as-of-right. Residential use is generally prohibited.
+R3: Low-density. Detached/semi-detached one- and two-family homes. FAR ~0.5-0.6.
+
+R4: Low-density. Small multi-family and row houses. FAR ~0.75.
+
+R5: Low/medium density. FAR ~1.25.
+
+R6: Medium-density. Most common in outer-borough development. Height Factor FAR 0.78-2.43; Quality Housing up to 2.43-3.0.
+
+R6A: Medium-density CONTEXTUAL district. Max residential FAR 3.0. Quality Housing program. Common in Astoria, Brooklyn infill. Height capped (~70 ft).
+
+R6B: Lower contextual. Max FAR 2.0. Brownstone-scale, ~50 ft height limit.
+
+R7: Medium/high density. Height Factor FAR up to 3.44; Quality Housing higher.
+
+R7A: Contextual. Max FAR 4.0. Common in transit-rich corridors. ~80 ft height.
+
+R7X: Contextual. Max FAR 5.0. Higher-density contextual; emerging dev corridors (LIC, Bronx).
+
+R8: High-density. FAR up to 6.02 (Height Factor) / 6.02-7.2 (Quality Housing).
+
+R9 / R10: Highest residential density. R10 max FAR ~10.0. Manhattan and dense cores.
+
+Note: Inclusionary Housing and other bonuses can increase residential FAR above the base
+(e.g. R6A with IH can reach ~3.6). Always verify against the current Zoning Resolution.
+
+=== COMMERCIAL DISTRICTS ===
+
+C1 / C2: Local retail OVERLAYS mapped over residential districts (e.g. C1-3, C2-4).
+The number after the dash sets parking/use; residential FAR follows the underlying R district.
+
+C4: Regional commercial centers outside the CBD. Specialty retail, offices, residential.
+Commercial FAR typically 3.4; residential equivalent varies by suffix (C4-2 ~ R6 residential,
+C4-3 ~ R6, C4-4/4-5 higher). Common for mixed-use development sites.
+
+C4-2: Lower-density general commercial. Commercial FAR 3.4, residential FAR ~2.43 (R6 equiv).
+Mixed-use as-of-right. Frequent in Queens/Brooklyn commercial corridors.
+
+C5 / C6: High-density commercial. C6 includes the densest mixed-use (Midtown, Downtown).
+Commercial FAR up to 10-15 with bonuses.
+
+C8: Heavy commercial / automotive. Generally no residential as-of-right.
+
+=== MANUFACTURING DISTRICTS ===
+
+M1: Light manufacturing. Most retail/offices as-of-right. Residential generally prohibited
+(except MX / special mixed-use districts). FAR ~1.0-5.0 depending on suffix.
+
+M1-2 / M1-4 / M1-5: Light industrial; higher suffixes allow higher commercial FAR.
+Increasingly targeted for rezoning to residential/mixed-use.
+
+M2 / M3: Medium and heavy manufacturing. No residential. Waterfront/industrial.
+
+MX (Special Mixed Use): Pairs an M1 with a residential district (e.g. M1-2/R6A) to allow
+both residential and light-industrial — common in rezoned creative/industrial neighborhoods.
+
+=== KEY CONCEPTS FOR SITE VALUATION ===
+
+BUILDABLE SQUARE FOOTAGE (BSF) = Lot Area x Residential FAR (as-of-right).
+Example: 5,000 sf lot in R6A (FAR 3.0) = 15,000 BSF as-of-right.
+
+AS-OF-RIGHT: What can be built without special permits or variances.
+
+SPECIAL DISTRICTS: Overlay custom rules on base zoning (e.g. Special Long Island City
+Mixed Use District, Special Hudson Yards District). Always check spdist fields.
+
+CITY OF YES (2024-2025): Citywide zoning reforms expanding residential development capacity,
+including the Universal Affordability Preference (UAP) bonus and reduced parking mandates.

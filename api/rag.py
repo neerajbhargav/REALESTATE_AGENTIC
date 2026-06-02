@@ -14,7 +14,7 @@ class FileVectorDB:
         search_term = search_term.upper()
         
         # Simple extraction: return the paragraph containing the search term
-        paragraphs = self.text.split("\\n\\n")
+        paragraphs = self.text.split("\n\n")
         for p in paragraphs:
             if search_term in p.upper() or search_term.replace(' ', '') in p.upper():
                 return p.strip()
