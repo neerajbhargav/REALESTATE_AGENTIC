@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, FileText, Sparkles, Loader2, Landmark, Ruler } from "lucide-react";
+import { ArrowLeft, FileText, Sparkles, Loader2, Landmark, Ruler, Printer } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import CitationChip from "./CitationChip";
@@ -8,6 +8,9 @@ import DevelopmentCard from "./report/DevelopmentCard";
 import LandValueCard from "./report/LandValueCard";
 import CompsTable from "./report/CompsTable";
 import FlagsCard from "./report/FlagsCard";
+import PropertyMap from "./report/PropertyMap";
+import ExecutiveSummary from "./report/ExecutiveSummary";
+import MetricsBar from "./report/MetricsBar";
 
 const fmtNum = (num) => {
   if (num === null || num === undefined) return "—";
@@ -15,12 +18,12 @@ const fmtNum = (num) => {
 };
 
 const ReportHeader = ({ address, bbl, borough, ms, statusText, onReset }) => (
-  <div className="border-b border-zinc-200 bg-white">
+  <div className="border-b border-zinc-200 bg-white print:border-none">
     <div className="px-6 lg:px-12 py-6">
       <button
         data-testid="back-button"
         onClick={onReset}
-        className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors mb-4"
+        className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors mb-4 print:hidden"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> New analysis
       </button>
@@ -31,9 +34,14 @@ const ReportHeader = ({ address, bbl, borough, ms, statusText, onReset }) => (
         <span className="bg-zinc-950 text-white uppercase tracking-widest px-2 py-1 rounded-sm flex items-center gap-1">
           <Sparkles className="w-3 h-3" /> AGENTIC WORKFLOW
         </span>
-        {bbl && (
+        {bbl && bbl !== "Resolving via Agent..." && (
           <span className="border border-zinc-300 text-zinc-600 uppercase tracking-widest px-2 py-1 rounded-sm">
             BBL {bbl}
+          </span>
+        )}
+        {borough && borough !== "NYC" && (
+          <span className="border border-zinc-300 text-zinc-600 uppercase tracking-widest px-2 py-1 rounded-sm">
+            {borough}
           </span>
         )}
         <span className="border border-zinc-300 text-zinc-600 uppercase tracking-widest px-2 py-1 rounded-sm">
@@ -85,15 +93,25 @@ const LotCard = ({ lot, bsf }) => (
       </h2>
     </div>
     <div className="divide-y divide-zinc-100">
-      <Stat label="Lot Area" value={bsf?.lot_area_sf ? `${fmtNum(bsf.lot_area_sf)} SF` : "—"} citation="PLUTO lotarea" />
+      <Stat label="Lot Area" value={
+        (lot?.lot_area_sf || bsf?.lot_area_sf)
+          ? `${fmtNum(lot?.lot_area_sf || bsf?.lot_area_sf)} SF`
+          : "—"
+      } citation="PLUTO lotarea" />
       <Stat
         label="Existing Building"
-        value={bsf?.currently_built_sf ? `${fmtNum(bsf.currently_built_sf)} SF` : "—"}
+        value={
+          (lot?.building_area_sf || bsf?.currently_built_sf)
+            ? `${fmtNum(lot?.building_area_sf || bsf?.currently_built_sf)} SF`
+            : "—"
+        }
         citation="PLUTO bldgarea"
       />
       <Stat label="Year Built" value={lot?.year_built || "—"} citation="PLUTO yearbuilt" />
       <Stat label="Land Use" value={lot?.land_use_description || "—"} citation="PLUTO landuse" />
       <Stat label="Owner" value={lot?.owner || "—"} citation="PLUTO ownername" />
+      {lot?.num_floors && <Stat label="Floors" value={lot.num_floors} citation="PLUTO numfloors" />}
+      {lot?.num_units && <Stat label="Units" value={lot.num_units} citation="PLUTO unitsres" />}
     </div>
   </div>
 );
@@ -101,44 +119,86 @@ const LotCard = ({ lot, bsf }) => (
 export const AssessmentReport = ({ report, onReset }) => {
   const { address, bbl, borough, processing_time_ms, streamingText, statusText, assessment } = report;
 
-  // If we have the final structured assessment, render the visual cards
+  // If we have the final structured assessment, render the visual dashboard
   if (assessment) {
     const bsf = assessment.development_potential || {};
+    const reportBbl = assessment.bbl || bbl;
+    const reportBorough = assessment.borough || borough;
+
     return (
       <div data-testid="assessment-report" className="w-full animate-rise">
         <ReportHeader
           address={address}
-          bbl={bbl}
-          borough={borough}
+          bbl={reportBbl}
+          borough={reportBorough}
           ms={processing_time_ms}
           statusText={statusText}
           onReset={onReset}
         />
 
-        <div className="px-6 lg:px-12 py-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <DevelopmentCard bsf={bsf} methodology={bsf.methodology} />
+        {/* Print button */}
+        <div className="px-6 lg:px-12 pt-4 flex justify-end print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-zinc-500 hover:text-zinc-900 border border-zinc-300 px-3 py-1.5 rounded-sm hover:bg-zinc-50 transition-colors"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Print / Export PDF
+          </button>
+        </div>
+
+        {/* Executive Summary */}
+        <div className="px-6 lg:px-12 pt-4">
+          <ExecutiveSummary summary={assessment.executive_summary} />
+        </div>
+
+        {/* Key Metrics Bar */}
+        <div className="px-6 lg:px-12 pt-4">
+          <MetricsBar assessment={assessment} />
+        </div>
+
+        {/* Map + Zoning side by side */}
+        <div className="px-6 lg:px-12 py-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <PropertyMap
+            coordinates={assessment.coordinates}
+            address={address}
+            bbl={reportBbl}
+            comps={assessment.comparable_sales}
+          />
           <ZoningCard zoning={assessment.zoning_summary || {}} />
+        </div>
+
+        {/* Development + Lot Cards */}
+        <div className="px-6 lg:px-12 pb-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <DevelopmentCard bsf={bsf} methodology={bsf.methodology} />
           <LotCard lot={assessment.lot_characteristics || {}} bsf={bsf} />
+        </div>
+
+        {/* Land Value */}
+        <div className="px-6 lg:px-12 pb-4 grid grid-cols-1 gap-4">
           <LandValueCard
             value={assessment.land_value_estimate || {}}
             narrative={assessment.land_value_estimate?.narrative || ""}
           />
         </div>
 
-        <div className="px-6 lg:px-12 pb-6">
+        {/* Comps Table */}
+        <div className="px-6 lg:px-12 pb-4">
           <CompsTable comps={assessment.comparable_sales || []} />
         </div>
 
+        {/* Flags */}
         {assessment.flags && assessment.flags.length > 0 && (
-          <div className="px-6 lg:px-12 pb-12">
+          <div className="px-6 lg:px-12 pb-6">
             <FlagsCard flags={assessment.flags} />
           </div>
         )}
 
+        {/* Data Sources Footer */}
         <div className="px-6 lg:px-12 pb-12">
           <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-zinc-400">
             <FileText className="w-3 h-3" />
-            {(assessment.data_sources || []).join("  ·  ")}
+            {(assessment.data_sources || ["NYC PLUTO", "ACRIS", "GeoSearch"]).join("  ·  ")}
           </div>
         </div>
       </div>

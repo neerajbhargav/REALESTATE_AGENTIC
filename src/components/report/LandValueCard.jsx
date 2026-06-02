@@ -1,34 +1,45 @@
 import React from "react";
-import { Landmark } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import CitationChip from "../CitationChip";
 import { fmtMoney, fmtMoneyShort } from "../../lib/format";
 
-const confBorderClass = (confidence) => {
-  if (confidence === "high") return "text-zinc-900 border-zinc-900";
-  if (confidence === "medium") return "text-zinc-700 border-zinc-400";
-  return "text-zinc-500 border-zinc-300";
-};
-
 export const LandValueCard = ({ value, narrative }) => {
-  const confidence = value.confidence || narrative.confidence || "low";
+  const hasTotal = value?.total_estimated_value != null;
+  const hasPerBsf = value?.estimated_value_per_bsf != null;
+  const hasRange = value?.low != null;
+  const narText = typeof narrative === "string" ? narrative : (narrative?.methodology || value?.methodology || "");
 
   return (
-    <div className="lg:col-span-2 bg-white border border-zinc-200 rounded-sm p-6">
+    <div className="bg-white border border-zinc-200 rounded-sm p-6">
       <div className="flex items-center gap-2 mb-4">
-        <Landmark className="w-4 h-4" />
+        <DollarSign className="w-4 h-4" />
         <h2 className="font-mono text-xs uppercase tracking-widest text-zinc-700">
-          Preliminary Land Value
+          Land Value Estimate
         </h2>
-        <span
-          className={`ml-auto font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-sm border ${confBorderClass(
-            confidence
-          )}`}
-        >
-          {confidence} confidence
-        </span>
       </div>
 
-      {value.low ? (
+      {hasTotal ? (
+        <>
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <span
+              data-testid="value-total"
+              className="font-display font-black tracking-tighter text-4xl lg:text-5xl text-emerald-700"
+            >
+              {fmtMoneyShort(value.total_estimated_value)}
+            </span>
+            <span className="font-mono text-sm text-zinc-500">estimated total</span>
+          </div>
+          {hasPerBsf && (
+            <div className="mt-2 font-mono text-sm text-zinc-600">
+              at{" "}
+              <span className="text-zinc-950 font-medium">
+                {fmtMoney(value.estimated_value_per_bsf)}/BSF
+              </span>{" "}
+              <CitationChip label="Agent computed" />
+            </div>
+          )}
+        </>
+      ) : hasRange ? (
         <>
           <div className="flex items-baseline gap-3 flex-wrap">
             <span
@@ -48,19 +59,23 @@ export const LandValueCard = ({ value, narrative }) => {
             </span>
           </div>
         </>
+      ) : hasPerBsf ? (
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <span className="font-display font-bold text-3xl text-zinc-950">
+            {fmtMoney(value.estimated_value_per_bsf)}/BSF
+          </span>
+        </div>
       ) : (
         <div className="py-2">
           <span className="font-display font-bold text-2xl text-zinc-400">
-            Estimate withheld
+            Estimate pending
           </span>
         </div>
       )}
-      <p className="mt-4 text-sm text-zinc-600 leading-relaxed border-t border-zinc-100 pt-3">
-        {narrative.methodology || value.methodology}
-      </p>
-      {(narrative.caveats || value.caveats) && (
-        <p className="mt-2 text-xs text-zinc-500 italic">
-          {narrative.caveats || value.caveats}
+
+      {(value?.narrative || narText) && (
+        <p className="mt-4 text-sm text-zinc-600 leading-relaxed border-t border-zinc-100 pt-3">
+          {value?.narrative || narText}
         </p>
       )}
     </div>

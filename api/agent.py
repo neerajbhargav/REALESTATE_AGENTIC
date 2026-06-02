@@ -30,9 +30,9 @@ TOOLS = [
         "name": "lookup_property",
         "description": (
             "Find information about a NYC property by address: geocoding "
-            "(BBL, borough_code, block, lot) plus PLUTO zoning and lot "
-            "characteristics (zoning district, residential FAR, lot area, "
-            "owner, year built)."
+            "(BBL, borough_code, block, lot, lat, lon) plus PLUTO zoning and lot "
+            "characteristics (zoning district, residential FAR, commercial FAR, "
+            "facility FAR, lot area, building area, owner, year built, land use)."
         ),
         "input_schema": {
             "type": "object",
@@ -80,10 +80,30 @@ TOOLS = [
     },
     {
         "name": "submit_final_report",
-        "description": "Call this tool to submit your final structured assessment.",
+        "description": (
+            "Call this tool ONCE to submit your final structured assessment. "
+            "You MUST fill in ALL fields from the data you collected. "
+            "Compute buildable SF = lot_area_sf × residential_far. "
+            "Compute total_estimated_value = estimated_value_per_bsf × buildable_sf. "
+            "Include the coordinates (lat/lon) from the geocoder for the map."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
+                "executive_summary": {
+                    "type": "string",
+                    "description": "A 3-5 sentence professional executive summary of the site opportunity for a broker/investor audience."
+                },
+                "coordinates": {
+                    "type": "object",
+                    "description": "Latitude/longitude from geocoder results.",
+                    "properties": {
+                        "lat": {"type": "number"},
+                        "lon": {"type": "number"}
+                    }
+                },
+                "bbl": {"type": "string", "description": "The 10-digit BBL"},
+                "borough": {"type": "string"},
                 "zoning_summary": {
                     "type": "object",
                     "properties": {
@@ -94,18 +114,31 @@ TOOLS = [
                 "lot_characteristics": {
                     "type": "object",
                     "properties": {
+                        "lot_area_sf": {"type": "number"},
+                        "building_area_sf": {"type": "number"},
                         "year_built": {"type": "string"},
                         "land_use_description": {"type": "string"},
-                        "owner": {"type": "string"}
+                        "owner": {"type": "string"},
+                        "num_floors": {"type": "number"},
+                        "num_units": {"type": "number"}
                     }
                 },
                 "development_potential": {
                     "type": "object",
                     "properties": {
-                        "methodology": {"type": "string"},
-                        "residential_bsf": {"type": "number"},
+                        "methodology": {"type": "string", "description": "Explain the BSF calculation clearly"},
+                        "lot_area_sf": {"type": "number"},
+                        "residential_far": {"type": "number"},
+                        "commercial_far": {"type": "number"},
+                        "facility_far": {"type": "number"},
+                        "currently_built_far": {"type": "number"},
+                        "residential_bsf": {"type": "number", "description": "lot_area_sf × residential_far"},
                         "commercial_bsf": {"type": "number"},
-                        "facility_bsf": {"type": "number"}
+                        "facility_bsf": {"type": "number"},
+                        "currently_built_sf": {"type": "number"},
+                        "remaining_development_potential": {"type": "number"},
+                        "utilization_pct": {"type": "number", "description": "Percentage of FAR used (0-100)"},
+                        "is_underbuilt": {"type": "boolean"}
                     }
                 },
                 "comparable_sales": {
@@ -119,6 +152,7 @@ TOOLS = [
                             "block": {"type": "string"},
                             "lot": {"type": "string"},
                             "bbl": {"type": "string"},
+                            "document_id": {"type": "string"},
                             "notes": {"type": "string"}
                         }
                     }
@@ -126,19 +160,23 @@ TOOLS = [
                 "land_value_estimate": {
                     "type": "object",
                     "properties": {
-                        "narrative": {"type": "string"},
-                        "estimated_value_per_bsf": {"type": "number"}
+                        "narrative": {"type": "string", "description": "2-3 sentence valuation rationale"},
+                        "estimated_value_per_bsf": {"type": "number"},
+                        "total_estimated_value": {"type": "number", "description": "estimated_value_per_bsf × buildable_sf"}
                     }
                 },
                 "flags": {
                     "type": "array",
-                    "items": {"type": "string"}
+                    "items": {"type": "string"},
+                    "description": "Risk flags, caveats, or key observations"
                 },
                 "data_sources": {
                     "type": "array",
-                    "items": {"type": "string"}
+                    "items": {"type": "string"},
+                    "description": "List all NYC public data sources used"
                 }
-            }
+            },
+            "required": ["executive_summary", "zoning_summary", "lot_characteristics", "development_potential", "land_value_estimate", "flags", "data_sources"]
         }
     }
 ]
@@ -151,7 +189,7 @@ async def _execute_tool(name: str, args: dict) -> str:
     """Run one tool and return its string result."""
     if name == "submit_final_report":
         return "Report submitted successfully."
-        
+
     async with httpx.AsyncClient() as http:
         try:
             if name == "lookup_property":
@@ -159,7 +197,9 @@ async def _execute_tool(name: str, args: dict) -> str:
                 pluto = await fetch_pluto(http, geo.bbl)
                 return (
                     f"GEO: {geo.model_dump_json()}\n"
-                    f"PLUTO: {pluto.model_dump_json()}"
+                    f"PLUTO: {pluto.model_dump_json()}\n"
+                    f"COORDINATES: lat={geo.lat}, lon={geo.lon}\n"
+                    f"BBL: {geo.bbl}, BOROUGH: {geo.borough}"
                 )
             elif name == "get_recent_sales":
                 comps = await fetch_comparables(
@@ -177,13 +217,34 @@ async def _execute_tool(name: str, args: dict) -> str:
 # ---------------------------------------------------------------------------
 # Streaming agentic loop
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are a highly advanced commercial real estate autonomous agent.
-Your goal is to evaluate NYC properties by autonomously pulling data and running calculations.
-Always use your tools to pull the PLUTO data and recent sales (ACRIS) before making an assessment.
+SYSTEM_PROMPT = """You are a highly advanced commercial real estate autonomous agent built for NYC brokers and investors.
+Your goal is to evaluate NYC development sites by autonomously pulling data and running calculations.
 
-When you are ready to give your final assessment, DO NOT output plain text.
-Instead, MUST call the `submit_final_report` tool with your structured data.
-Be precise, professional, and always cite your data sources."""
+WORKFLOW:
+1. Call `lookup_property` to get geocoding (BBL, coordinates) and PLUTO data (zoning, FAR, lot area, building area).
+2. Call `check_zoning_code` with the zoning district from PLUTO to get zoning description.
+3. Call `get_recent_sales` with the borough_code, block, and lot to get ACRIS comparable sales.
+4. COMPUTE the key metrics yourself:
+   - Buildable SF (BSF) = lot_area × residential_far
+   - Currently built FAR = building_area / lot_area
+   - Utilization % = (currently_built_far / residential_far) × 100
+   - Remaining development = BSF - building_area
+   - Estimated $/BSF from comparable sales (sale_price / lot_area for nearby)
+   - Total estimated value = $/BSF × buildable_sf
+
+5. Call `submit_final_report` with ALL computed data. Fill in EVERY field. Include:
+   - coordinates from geocoder (lat, lon) — CRITICAL for the map
+   - bbl and borough
+   - executive_summary (3-5 sentence broker-grade opportunity summary)
+   - All lot characteristics (lot_area_sf, building_area_sf, year_built, owner, etc.)
+   - All development potential numbers (FAR, BSF, utilization, is_underbuilt)
+   - comparable_sales with all fields from ACRIS data
+   - land_value_estimate with narrative, $/BSF, and total value
+   - flags (risk factors, caveats)
+   - data_sources list
+
+IMPORTANT: Do NOT write a text response. Your ONLY final output must be the submit_final_report tool call.
+Be precise with numbers. Always cite data sources. This is for professional broker use."""
 
 
 async def run_agent_stream(address: str):
@@ -197,7 +258,7 @@ async def run_agent_stream(address: str):
     """
     client = _get_client()
     messages = [
-        {"role": "user", "content": f"Please run a full site assessment on {address}."}
+        {"role": "user", "content": f"Please run a full site assessment on {address}. Remember to include coordinates and ALL numeric fields."}
     ]
 
     yield f"data: {json.dumps({'type': 'status', 'content': f'Starting analysis for {address}...'})}\n\n"
