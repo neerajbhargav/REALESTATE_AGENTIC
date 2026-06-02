@@ -77,6 +77,13 @@ export function useAnalysis() {
                 statusText: statusText,
                 processing_time_ms: Date.now() - startTime,
               }));
+            } else if (parsed.type === "final_report" && parsed.content) {
+              setReport((prev) => ({
+                ...prev,
+                assessment: parsed.content,
+                statusText: "Complete",
+                processing_time_ms: Date.now() - startTime,
+              }));
             } else if (parsed.type === "error") {
               throw new Error(parsed.content || "Agent error");
             } else if (parsed.type === "done") {
