@@ -11,12 +11,12 @@ export const PropertyChat = ({ isOpen, onClose, address, assessment }) => {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
-  // Auto scroll to bottom
+  // Auto scroll to bottom of the chat container ONLY (prevents outer page scrolling/jumping)
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, loading]);
 
@@ -126,7 +126,10 @@ export const PropertyChat = ({ isOpen, onClose, address, assessment }) => {
       </div>
 
       {/* Message History */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      <div
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto p-5 space-y-4"
+      >
         {messages.map((msg, idx) => {
           const isUser = msg.role === "user";
           return (
@@ -164,7 +167,6 @@ export const PropertyChat = ({ isOpen, onClose, address, assessment }) => {
             </div>
           );
         })}
-        <div ref={scrollRef} />
       </div>
 
       {/* Input Form */}
