@@ -4,7 +4,15 @@ import { toast } from "sonner";
 export function useAnalysis() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
-  const [reports, setReports] = useState([]); // History stub
+  const [reports, setReports] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cre_reports_history");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load reports history", e);
+      return [];
+    }
+  });
 
   const runAnalysis = useCallback(async (address) => {
     const target = (address || "").trim();
@@ -32,7 +40,10 @@ export function useAnalysis() {
       // Initialize an empty report shell
       let currentText = "";
       let statusText = "";
+      let finalData = null;
+
       setReport({
+        id: target + "-" + Date.now(),
         address: target,
         bbl: "Resolving via Agent...",
         borough: "NYC",
@@ -78,6 +89,7 @@ export function useAnalysis() {
                 processing_time_ms: Date.now() - startTime,
               }));
             } else if (parsed.type === "final_report" && parsed.content) {
+              finalData = parsed.content;
               setReport((prev) => ({
                 ...prev,
                 assessment: parsed.content,
@@ -90,22 +102,41 @@ export function useAnalysis() {
               // Stream finished
             }
           } catch (parseErr) {
-            // If it's a re-thrown error from above, propagate it
             if (parseErr.message && !parseErr.message.includes("JSON")) {
               throw parseErr;
             }
-            // Otherwise ignore partial JSON
           }
         }
       }
 
-      setReport((prev) => ({
-        ...prev,
-        processing_time_ms: Date.now() - startTime,
-        statusText: "Complete",
-      }));
+      const totalTime = Date.now() - startTime;
+      setReport((prev) => {
+        const finishedReport = {
+          ...prev,
+          processing_time_ms: totalTime,
+          statusText: "Complete",
+        };
+
+        // Save to reports history if we have assessment data
+        if (finishedReport.assessment) {
+          setReports((oldReports) => {
+            const cleanReports = oldReports.filter(
+              (r) => r.address.toLowerCase() !== target.toLowerCase()
+            );
+            const newHistory = [finishedReport, ...cleanReports];
+            try {
+              localStorage.setItem("cre_reports_history", JSON.stringify(newHistory));
+            } catch (e) {
+              console.error("Storage save failed", e);
+            }
+            return newHistory;
+          });
+        }
+        return finishedReport;
+      });
+
       toast.success("Agentic Assessment Complete", {
-        description: `${target} · ${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+        description: `${target} · ${(totalTime / 1000).toFixed(1)}s`,
       });
     } catch (err) {
       setLoading(false);
@@ -114,9 +145,35 @@ export function useAnalysis() {
     }
   }, []);
 
-  const selectHistory = useCallback(async (id) => {}, []);
+  const selectHistory = useCallback((id) => {
+    setReports((currentReports) => {
+      const found = currentReports.find((r) => r.id === id);
+      if (found) {
+        setReport(found);
+      }
+      return currentReports;
+    });
+  }, []);
+
+  const deleteReport = useCallback((id) => {
+    setReports((oldReports) => {
+      const filtered = oldReports.filter((r) => r.id !== id);
+      try {
+        localStorage.setItem("cre_reports_history", JSON.stringify(filtered));
+      } catch (e) {
+        console.error("Failed to update history in localStorage", e);
+      }
+      return filtered;
+    });
+    setReport((currentReport) => {
+      if (currentReport?.id === id) {
+        return null;
+      }
+      return currentReport;
+    });
+  }, []);
 
   const reset = useCallback(() => setReport(null), []);
 
-  return { loading, report, reports, runAnalysis, selectHistory, reset };
+  return { loading, report, reports, runAnalysis, selectHistory, deleteReport, reset };
 }

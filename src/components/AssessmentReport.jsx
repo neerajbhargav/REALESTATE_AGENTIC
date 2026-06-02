@@ -11,6 +11,7 @@ import FlagsCard from "./report/FlagsCard";
 import PropertyMap from "./report/PropertyMap";
 import ExecutiveSummary from "./report/ExecutiveSummary";
 import MetricsBar from "./report/MetricsBar";
+import ProFormaCard from "./report/ProFormaCard";
 
 const fmtNum = (num) => {
   if (num === null || num === undefined) return "—";
@@ -179,6 +180,14 @@ export const AssessmentReport = ({ report, onReset }) => {
           <LandValueCard
             value={assessment.land_value_estimate || {}}
             narrative={assessment.land_value_estimate?.narrative || ""}
+          />
+        </div>
+
+        {/* Interactive Pro Forma */}
+        <div className="px-6 lg:px-12 pb-4 grid grid-cols-1 gap-4 print:hidden">
+          <ProFormaCard
+            bsf={bsf}
+            estimatedLandValue={assessment.land_value_estimate?.total_estimated_value}
           />
         </div>
 
