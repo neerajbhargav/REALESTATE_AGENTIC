@@ -102,7 +102,7 @@ export const PropertyChat = ({ isOpen, onClose, address, assessment }) => {
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white border-l border-zinc-200 shadow-2xl flex flex-col z-50 animate-slide-in">
+    <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] h-screen bg-white border-l border-zinc-200 shadow-2xl flex flex-col z-50 animate-slide-in overflow-hidden">
       {/* Header */}
       <div className="px-5 py-4 border-b border-zinc-150 flex items-center justify-between bg-zinc-50 shrink-0">
         <div className="flex items-center gap-2">

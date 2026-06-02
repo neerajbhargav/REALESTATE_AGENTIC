@@ -95,9 +95,9 @@ async def chat_endpoint(req: ChatRequest):
     system_prompt = (
         "You are an expert commercial real estate underwriting AI agent. "
         f"Answer the user's question about the property located at {address}. "
-        "Use the following property context (PLUTO data, zoning rules, comparable sales, calculated limits) to answer accurate questions. "
-        "If the answer cannot be found in the context, use your broad NYC zoning knowledge to answer, but specify that it is general guidance. "
-        "Keep your response concise, professional, broker-grade, and structured in clean markdown.\n\n"
+        "Use the property context (PLUTO data, zoning rules, comparable sales, calculated limits) to answer. "
+        "CRITICAL: Keep your response extremely concise, direct, and under 2 sentences maximum. Do not write introductory filler or long explanations. "
+        "Make it punchy, professional, and structured in clean markdown.\n\n"
         f"PROPERTY CONTEXT:\n{json.dumps(context, indent=2)}"
     )
 
