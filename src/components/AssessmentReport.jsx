@@ -173,7 +173,7 @@ export const AssessmentReport = ({ report, onReset }) => {
 
         {/* Map / 3D Tab + Zoning side by side */}
         <div className="px-6 lg:px-12 py-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="flex flex-col h-[430px]">
+          <div className="flex flex-col h-auto lg:h-[440px]">
             <div className="flex bg-zinc-100 p-0.5 rounded-sm self-start mb-2 print:hidden shrink-0">
               <button
                 onClick={() => setMapTab("map")}

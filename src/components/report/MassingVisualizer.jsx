@@ -66,7 +66,7 @@ export const MassingVisualizer = ({ bsf }) => {
   const bldgHeight = floors * 8; // 8px per floor
 
   return (
-    <div className="bg-white border border-zinc-200 rounded-sm p-6 overflow-hidden flex flex-col lg:flex-row gap-6">
+    <div className="bg-white border border-zinc-200 rounded-sm p-6 overflow-hidden flex flex-col lg:flex-row gap-6 lg:h-full">
       
       {/* 3D Viewport Column */}
       <div className="flex-1 flex flex-col min-h-[300px] border border-zinc-100 rounded-sm bg-zinc-50/50 relative select-none">
