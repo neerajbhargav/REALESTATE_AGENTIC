@@ -3,6 +3,14 @@
 Uses FastAPI mounted at /api. The main endpoint is POST /api/analyze which
 streams SSE back to the frontend as the agent works.
 """
+import sys
+import os
+
+# Vercel runs this file from /var/task/ but sibling modules (agent.py, rag.py,
+# tools/) live in /var/task/api/. Add our own directory to sys.path so that
+# `from agent import ...` and `from tools.geocoder import ...` resolve.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import json
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
