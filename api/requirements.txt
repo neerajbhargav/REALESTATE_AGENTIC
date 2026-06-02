@@ -1,7 +1,5 @@
+anthropic
 fastapi
 httpx
 pydantic
-langchain-core
-langchain-anthropic
-langgraph
 python-dotenv
