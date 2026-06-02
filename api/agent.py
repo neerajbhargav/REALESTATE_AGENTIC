@@ -1,12 +1,12 @@
-"""Lightweight agentic loop — calls Anthropic directly with tool_use.
+"""Optimized agentic loop — pre-fetches all data in parallel to bypass multi-turn latency.
 
-Eliminates the massive langgraph/langchain dependency tree that crashes
-Vercel serverless. Same agentic behaviour: Claude decides which tools to
-call, we execute them, and loop until Claude produces a final text response.
+Spawns a single turn LLM call to synthesize the opportunity report and estimate values.
+Eliminates AWS Lambda/Vercel serverless timeout issues.
 """
 import os
 import json
 import httpx
+import asyncio
 from anthropic import AsyncAnthropic
 
 from tools.geocoder import geocode
@@ -20,69 +20,17 @@ from rag import get_zoning_rule
 def _get_client() -> AsyncAnthropic:
     return AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
-MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
 
 # ---------------------------------------------------------------------------
 # Tool definitions (Anthropic native format)
 # ---------------------------------------------------------------------------
 TOOLS = [
     {
-        "name": "lookup_property",
-        "description": (
-            "Find information about a NYC property by address: geocoding "
-            "(BBL, borough_code, block, lot, lat, lon) plus PLUTO zoning and lot "
-            "characteristics (zoning district, residential FAR, commercial FAR, "
-            "facility FAR, lot area, building area, owner, year built, land use)."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string",
-                    "description": "NYC street address to look up"
-                }
-            },
-            "required": ["address"],
-        },
-    },
-    {
-        "name": "get_recent_sales",
-        "description": (
-            "Fetch recent comparable DEED sales (ACRIS) near a property. "
-            "Requires borough_code, block, and lot from lookup_property."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "borough_code": {"type": "string"},
-                "block": {"type": "string"},
-                "lot": {"type": "string"},
-            },
-            "required": ["borough_code", "block", "lot"],
-        },
-    },
-    {
-        "name": "check_zoning_code",
-        "description": (
-            "Fetch the plain-English meaning of a NYC zoning district "
-            "(e.g. 'R6A', 'C4-2') to understand what can be built."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "district": {
-                    "type": "string",
-                    "description": "NYC zoning district code"
-                }
-            },
-            "required": ["district"],
-        },
-    },
-    {
         "name": "submit_final_report",
         "description": (
             "Call this tool ONCE to submit your final structured assessment. "
-            "You MUST fill in ALL fields from the data you collected. "
+            "You MUST fill in ALL fields from the pre-fetched data provided. "
             "Compute buildable SF = lot_area_sf × residential_far. "
             "Compute total_estimated_value = estimated_value_per_bsf × buildable_sf. "
             "Include the coordinates (lat/lon) from the geocoder for the map."
@@ -175,96 +123,126 @@ TOOLS = [
                     "items": {"type": "string"},
                     "description": "List all NYC public data sources used"
                 }
-            },
-            "required": ["executive_summary", "zoning_summary", "lot_characteristics", "development_potential", "land_value_estimate", "flags", "data_sources"]
+              },
+              "required": [
+                  "executive_summary",
+                  "zoning_summary",
+                  "lot_characteristics",
+                  "development_potential",
+                  "land_value_estimate",
+                  "flags",
+                  "data_sources"
+              ]
         }
     }
 ]
 
+SYSTEM_PROMPT = """You are an advanced commercial real estate underwriting agent.
+We have pre-fetched public records from NYC GeoSearch, PLUTO, and ACRIS.
+Your goal is to synthesize this raw data into a professional assessment report for brokers and developers.
 
-# ---------------------------------------------------------------------------
-# Tool execution
-# ---------------------------------------------------------------------------
-async def _execute_tool(name: str, args: dict) -> str:
-    """Run one tool and return its string result."""
-    if name == "submit_final_report":
-        return "Report submitted successfully."
+First, write a brief, professional markdown analysis showing your thought process and calculations.
+Then, call the `submit_final_report` tool with the structured JSON payload.
+
+GUIDELINES FOR VALUES:
+1. Coordinates: Use the lat/lon provided in the raw data.
+2. Buildable SF (BSF): lot_area_sf × residential_far.
+3. Utilization %: (currently_built_sf / (lot_area_sf × residential_far)) * 100.
+4. Valuation: Estimate $/BSF based on the ACRIS comps. If no comps exist, use a reasonable market estimate (e.g. $150-$250/BSF for Forest Hills/Queens, $300-$500/BSF for LIC/Brooklyn, $600-$1000/BSF for Manhattan).
+5. Compute total estimated value = $/BSF × BSF.
+6. Check for underbuilt status: is_underbuilt is True if utilization % < 70%.
+
+Your thought process text will stream to the user, and then the structured tool call will be parsed to draw the dashboard.
+Make sure you call the `submit_final_report` tool. Fill in every required field exactly."""
+
+async def run_agent_stream(address: str):
+    """Async generator yielding SSE-formatted strings.
+
+    Performs parallel pre-fetching of NYC data APIs, then runs a single LLM turn to stream thoughts and output the structured report.
+    """
+    client = _get_client()
+
+    yield f"data: {json.dumps({'type': 'status', 'content': 'Geocoding property address...'})}\n\n"
 
     async with httpx.AsyncClient() as http:
         try:
-            if name == "lookup_property":
-                geo = await geocode(http, args["address"])
-                pluto = await fetch_pluto(http, geo.bbl)
-                return (
-                    f"GEO: {geo.model_dump_json()}\n"
-                    f"PLUTO: {pluto.model_dump_json()}\n"
-                    f"COORDINATES: lat={geo.lat}, lon={geo.lon}\n"
-                    f"BBL: {geo.bbl}, BOROUGH: {geo.borough}"
-                )
-            elif name == "get_recent_sales":
-                comps = await fetch_comparables(
-                    http, args["borough_code"], args["block"], args["lot"]
-                )
-                return f"Found {len(comps)} recent sales: {[c.model_dump() for c in comps]}"
-            elif name == "check_zoning_code":
-                return get_zoning_rule(args["district"])
-            else:
-                return f"Unknown tool: {name}"
+            # 1. Geocode
+            geo = await geocode(http, address)
+            yield f"data: {json.dumps({'type': 'status', 'content': f'Resolved address to BBL {geo.bbl} ({geo.borough})'})}\n\n"
+
+            # 2. Fetch PLUTO & ACRIS Comps in parallel
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Fetching PLUTO zoning and ACRIS comparable sales in parallel...'})}\n\n"
+            
+            pluto_task = fetch_pluto(http, geo.bbl)
+            comps_task = fetch_comparables(http, geo.borough_code, geo.block, geo.lot)
+
+            pluto_res, comps_res = await asyncio.gather(pluto_task, comps_task, return_exceptions=True)
+
+            if isinstance(pluto_res, Exception):
+                raise pluto_res
+            
+            pluto = pluto_res
+            comps = comps_res if not isinstance(comps_res, Exception) else []
+
+            # 3. Fetch zoning text meaning
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Retrieving zoning regulations RAG context...'})}\n\n"
+            zoning_desc = ""
+            if pluto.zonedist1:
+                try:
+                    zoning_desc = get_zoning_rule(pluto.zonedist1)
+                except Exception:
+                    zoning_desc = f"Zoning district RAG search failed for {pluto.zonedist1}"
+
+            # 4. Package context for single-turn Claude call
+            raw_data = {
+                "geosearch": {
+                    "bbl": geo.bbl,
+                    "borough": geo.borough,
+                    "lat": geo.lat,
+                    "lon": geo.lon,
+                    "formatted_address": geo.formatted_address,
+                },
+                "pluto": {
+                    "address": pluto.address,
+                    "borough": pluto.borough,
+                    "zonedist1": pluto.zonedist1,
+                    "zonedist2": pluto.zonedist2,
+                    "residfar": pluto.residfar,
+                    "commfar": pluto.commfar,
+                    "facilfar": pluto.facilfar,
+                    "lotarea": pluto.lotarea,
+                    "bldgarea": pluto.bldgarea,
+                    "builtfar": pluto.builtfar,
+                    "numfloors": pluto.numfloors,
+                    "unitsres": pluto.unitsres,
+                    "yearbuilt": pluto.yearbuilt,
+                    "ownername": pluto.ownername,
+                    "landuse": pluto.landuse,
+                    "assesstot": pluto.assesstot,
+                    "assessland": pluto.assessland,
+                },
+                "zoning_desc": zoning_desc,
+                "comparable_sales": [c.model_dump() for c in comps]
+            }
+
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Analyzing site feasibility and underwriting values...'})}\n\n"
+
         except Exception as e:
-            return f"Tool error ({name}): {e}"
+            yield f"data: {json.dumps({'type': 'error', 'content': f'Feasibility gathering failed: {str(e)}'})}\n\n"
+            return
 
+    # Call Claude with all pre-fetched data
+    user_prompt = (
+        f"Here is the raw geocoding, PLUTO lot, ACRIS comps, and zoning RAG data for {address}:\n"
+        f"{json.dumps(raw_data, indent=2)}\n\n"
+        "Synthesize this site opportunity. Provide a brief narrative in markdown, and then call submit_final_report."
+    )
 
-# ---------------------------------------------------------------------------
-# Streaming agentic loop
-# ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are a highly advanced commercial real estate autonomous agent built for NYC brokers and investors.
-Your goal is to evaluate NYC development sites by autonomously pulling data and running calculations.
-
-WORKFLOW:
-1. Call `lookup_property` to get geocoding (BBL, coordinates) and PLUTO data (zoning, FAR, lot area, building area).
-2. Call `check_zoning_code` with the zoning district from PLUTO to get zoning description.
-3. Call `get_recent_sales` with the borough_code, block, and lot to get ACRIS comparable sales.
-4. COMPUTE the key metrics yourself:
-   - Buildable SF (BSF) = lot_area × residential_far
-   - Currently built FAR = building_area / lot_area
-   - Utilization % = (currently_built_far / residential_far) × 100
-   - Remaining development = BSF - building_area
-   - Estimated $/BSF from comparable sales (sale_price / lot_area for nearby)
-   - Total estimated value = $/BSF × buildable_sf
-
-5. Call `submit_final_report` with ALL computed data. Fill in EVERY field. Include:
-   - coordinates from geocoder (lat, lon) — CRITICAL for the map
-   - bbl and borough
-   - executive_summary (3-5 sentence broker-grade opportunity summary)
-   - All lot characteristics (lot_area_sf, building_area_sf, year_built, owner, etc.)
-   - All development potential numbers (FAR, BSF, utilization, is_underbuilt)
-   - comparable_sales with all fields from ACRIS data
-   - land_value_estimate with narrative, $/BSF, and total value
-   - flags (risk factors, caveats)
-   - data_sources list
-
-IMPORTANT: Do NOT write a text response. Your ONLY final output must be the submit_final_report tool call.
-Be precise with numbers. Always cite data sources. This is for professional broker use."""
-
-
-async def run_agent_stream(address: str):
-    """Async generator that yields SSE-formatted strings.
-
-    The loop:
-    1. Send messages to Claude with tools.
-    2. If Claude responds with tool_use blocks, execute them and loop.
-    3. If Claude responds with text, stream it out.
-    4. If Claude calls `submit_final_report`, emit a special event and finish.
-    """
-    client = _get_client()
     messages = [
-        {"role": "user", "content": f"Please run a full site assessment on {address}. Remember to include coordinates and ALL numeric fields."}
+        {"role": "user", "content": user_prompt}
     ]
 
-    yield f"data: {json.dumps({'type': 'status', 'content': f'Starting analysis for {address}...'})}\n\n"
-
-    MAX_LOOPS = 8  # safety cap
-    for _ in range(MAX_LOOPS):
+    try:
         response = await client.messages.create(
             model=MODEL,
             max_tokens=4096,
@@ -281,39 +259,33 @@ async def run_agent_stream(address: str):
             elif block.type == "text":
                 text_parts.append(block.text)
 
-        # Stream any intermediate text thought process
+        # Stream the thought process text in small chunks to simulate live execution
         if text_parts:
             full_text = "\n".join(text_parts)
-            chunk_size = 12
+            chunk_size = 15
             for i in range(0, len(full_text), chunk_size):
                 chunk = full_text[i:i + chunk_size]
                 yield f"data: {json.dumps({'type': 'content_chunk', 'content': chunk})}\n\n"
+                await asyncio.sleep(0.01)
 
         if tool_calls:
-            # Check for final report
             for tc in tool_calls:
                 if tc.name == "submit_final_report":
-                    yield f"data: {json.dumps({'type': 'final_report', 'content': tc.input})}\n\n"
+                    # Ensure lat/lon coordinates from geocoder are preserved if missing in tool call
+                    tc_input = dict(tc.input)
+                    if "coordinates" not in tc_input or not tc_input["coordinates"]:
+                        tc_input["coordinates"] = {"lat": geo.lat, "lon": geo.lon}
+                    if "bbl" not in tc_input or not tc_input["bbl"]:
+                        tc_input["bbl"] = geo.bbl
+                    if "borough" not in tc_input or not tc_input["borough"]:
+                        tc_input["borough"] = geo.borough
+
+                    yield f"data: {json.dumps({'type': 'final_report', 'content': tc_input})}\n\n"
                     yield f"data: {json.dumps({'type': 'done'})}\n\n"
                     return
 
-            # Execute intermediate tools
-            tool_results = []
-            for tc in tool_calls:
-                yield f"data: {json.dumps({'type': 'status', 'content': f'Running tool: {tc.name}...'})}\n\n"
-                result = await _execute_tool(tc.name, tc.input)
-                yield f"data: {json.dumps({'type': 'status', 'content': f'✓ Finished: {tc.name}'})}\n\n"
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": tc.id,
-                    "content": result,
-                })
+        # Fallback if Claude didn't call the tool directly
+        yield f"data: {json.dumps({'type': 'error', 'content': 'Agent failed to submit structured report payload.'})}\n\n"
 
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-            continue
-
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-        return
-
-    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'error', 'content': f'Underwriting model call failed: {str(e)}'})}\n\n"

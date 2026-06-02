@@ -1,5 +1,5 @@
-import React from "react";
-import { ArrowLeft, FileText, Sparkles, Loader2, Landmark, Ruler, Printer } from "lucide-react";
+import React, { useState } from "react";
+import { ArrowLeft, FileText, Sparkles, Loader2, Landmark, Ruler, Printer, MessageSquare } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import CitationChip from "./CitationChip";
@@ -12,6 +12,8 @@ import PropertyMap from "./report/PropertyMap";
 import ExecutiveSummary from "./report/ExecutiveSummary";
 import MetricsBar from "./report/MetricsBar";
 import ProFormaCard from "./report/ProFormaCard";
+import MassingVisualizer from "./report/MassingVisualizer";
+import PropertyChat from "./report/PropertyChat";
 
 const fmtNum = (num) => {
   if (num === null || num === undefined) return "—";
@@ -118,6 +120,9 @@ const LotCard = ({ lot, bsf }) => (
 );
 
 export const AssessmentReport = ({ report, onReset }) => {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [mapTab, setMapTab] = useState("map");
+
   const { address, bbl, borough, processing_time_ms, streamingText, statusText, assessment } = report;
 
   // If we have the final structured assessment, render the visual dashboard
@@ -137,8 +142,16 @@ export const AssessmentReport = ({ report, onReset }) => {
           onReset={onReset}
         />
 
-        {/* Print button */}
-        <div className="px-6 lg:px-12 pt-4 flex justify-end print:hidden">
+        {/* Print + Chat buttons */}
+        <div className="px-6 lg:px-12 pt-4 flex gap-3 justify-end print:hidden">
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-white bg-zinc-950 hover:bg-zinc-800 border border-transparent px-3 py-1.5 rounded-sm transition-colors"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            Chat with Underwriter
+          </button>
+          
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-zinc-500 hover:text-zinc-900 border border-zinc-300 px-3 py-1.5 rounded-sm hover:bg-zinc-50 transition-colors"
@@ -158,14 +171,46 @@ export const AssessmentReport = ({ report, onReset }) => {
           <MetricsBar assessment={assessment} />
         </div>
 
-        {/* Map + Zoning side by side */}
+        {/* Map / 3D Tab + Zoning side by side */}
         <div className="px-6 lg:px-12 py-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <PropertyMap
-            coordinates={assessment.coordinates}
-            address={address}
-            bbl={reportBbl}
-            comps={assessment.comparable_sales}
-          />
+          <div className="flex flex-col h-[430px]">
+            <div className="flex bg-zinc-100 p-0.5 rounded-sm self-start mb-2 print:hidden shrink-0">
+              <button
+                onClick={() => setMapTab("map")}
+                className={`px-3 py-1 font-mono text-[10px] uppercase tracking-wider rounded-sm transition-all ${
+                  mapTab === "map"
+                    ? "bg-white text-zinc-950 font-bold shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-950"
+                }`}
+              >
+                Map Location
+              </button>
+              <button
+                onClick={() => setMapTab("3d")}
+                className={`px-3 py-1 font-mono text-[10px] uppercase tracking-wider rounded-sm transition-all ${
+                  mapTab === "3d"
+                    ? "bg-white text-zinc-950 font-bold shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-950"
+                }`}
+              >
+                3D Envelope Model
+              </button>
+            </div>
+            
+            <div className="flex-1 min-h-0">
+              {mapTab === "map" ? (
+                <PropertyMap
+                  coordinates={assessment.coordinates}
+                  address={address}
+                  bbl={reportBbl}
+                  comps={assessment.comparable_sales}
+                />
+              ) : (
+                <MassingVisualizer bsf={bsf} />
+              )}
+            </div>
+          </div>
+          
           <ZoningCard zoning={assessment.zoning_summary || {}} />
         </div>
 
@@ -210,6 +255,14 @@ export const AssessmentReport = ({ report, onReset }) => {
             {(assessment.data_sources || ["NYC PLUTO", "ACRIS", "GeoSearch"]).join("  ·  ")}
           </div>
         </div>
+
+        {/* Property Chat Drawer */}
+        <PropertyChat
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          address={address}
+          assessment={assessment}
+        />
       </div>
     );
   }
