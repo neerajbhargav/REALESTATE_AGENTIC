@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import json
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from fastapi.responses import StreamingResponse, JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -57,6 +57,21 @@ async def analyze_endpoint(req: AnalyzeRequest):
             "X-Accel-Buffering": "no",  # disable nginx buffering
         },
     )
+
+
+@app.get("/api/suggest")
+async def suggest_endpoint(q: str = ""):
+    """Return NYC address suggestions for autocomplete."""
+    if len(q.strip()) < 3:
+        return {"suggestions": []}
+    import httpx
+    from tools.geocoder import suggest_addresses
+    async with httpx.AsyncClient() as http:
+        try:
+            results = await suggest_addresses(http, q.strip())
+            return {"suggestions": results}
+        except Exception:
+            return {"suggestions": []}
 
 
 @app.get("/api/health")

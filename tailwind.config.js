@@ -8,8 +8,8 @@ export default {
   theme: {
         extend: {
                 fontFamily: {
-                        display: ['"Cabinet Grotesk"', '"IBM Plex Sans"', 'sans-serif'],
-                        sans: ['"IBM Plex Sans"', 'sans-serif'],
+                        display: ['"Inter"', '"IBM Plex Sans"', 'sans-serif'],
+                        sans: ['"IBM Plex Sans"', '"Inter"', 'sans-serif'],
                         mono: ['"IBM Plex Mono"', 'monospace']
                 },
                 borderRadius: {
