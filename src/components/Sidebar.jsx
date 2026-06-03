@@ -1,5 +1,5 @@
 import React from "react";
-import { Building2, MapPin, Zap, Code2, ExternalLink, Trash2, Scale } from "lucide-react";
+import { Building2, MapPin, Zap, Code2, ExternalLink, Trash2, Scale, X } from "lucide-react";
 
 const TEST_ADDRESSES = [
   "21-48 44th Drive, Long Island City, NY",
@@ -20,6 +20,8 @@ export const Sidebar = ({
   onToggleCompare,
   onCompareClick,
   compareMode,
+  isMobile,
+  onCloseMobile,
 }) => {
   return (
     <aside
@@ -27,7 +29,7 @@ export const Sidebar = ({
       className="w-full lg:w-[280px] shrink-0 border-r border-zinc-200 bg-white flex flex-col h-full overflow-hidden"
     >
       {/* Brand header */}
-      <div className="px-5 py-5 border-b border-zinc-100 shrink-0">
+      <div className="px-5 py-5 border-b border-zinc-100 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-zinc-950 rounded-md flex items-center justify-center shadow-sm">
             <Building2 className="w-4 h-4 text-white" strokeWidth={2.5} />
@@ -41,6 +43,15 @@ export const Sidebar = ({
             </span>
           </div>
         </div>
+        {isMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="lg:hidden p-1.5 text-zinc-400 hover:text-zinc-800 rounded-md hover:bg-zinc-50 transition-colors"
+            title="Close menu"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Capabilities */}
