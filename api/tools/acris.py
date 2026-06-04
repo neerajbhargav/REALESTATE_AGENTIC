@@ -58,8 +58,8 @@ async def _fetch_deeds(
     """Fetch arm's-length DEED master records for a list of document_ids."""
     if not doc_ids:
         return []
-    # Socrata `in()` clause — cap to avoid overly long query strings
-    chunk = doc_ids[:300]
+    # Socrata `in()` clause — cap to avoid overly long query strings which hang the API
+    chunk = doc_ids[:40]
     inlist = ",".join(f"'{d}'" for d in chunk)
     where = (
         f"doc_type='DEED' AND document_amt > {MIN_PRICE} "

@@ -114,16 +114,16 @@ export function useAnalysis() {
         const finishedReport = {
           ...prev,
           processing_time_ms: totalTime,
-          statusText: "Complete",
         };
 
-        // Save to reports history if we have assessment data
         if (finishedReport.assessment) {
+          finishedReport.statusText = "Complete";
           setReports((oldReports) => {
-            const cleanReports = oldReports.filter(
-              (r) => r.address.toLowerCase() !== target.toLowerCase()
+            const exists = oldReports.some(
+              (r) => r.address === finishedReport.address
             );
-            const newHistory = [finishedReport, ...cleanReports];
+            if (exists) return oldReports;
+            const newHistory = [finishedReport, ...oldReports].slice(0, 10);
             try {
               localStorage.setItem("cre_reports_history", JSON.stringify(newHistory));
             } catch (e) {
@@ -131,7 +131,17 @@ export function useAnalysis() {
             }
             return newHistory;
           });
+          
+          toast.success("Agentic Assessment Complete", {
+            description: `Analysis finished in ${(totalTime / 1000).toFixed(1)}s`,
+          });
+        } else {
+          toast.error("Analysis Timeout", { 
+            description: "The Vercel Serverless Function timed out (60s limit). Try a simpler address with fewer comps." 
+          });
+          finishedReport.statusText = "Timeout Error";
         }
+
         return finishedReport;
       });
 
